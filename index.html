@@ -160,20 +160,7 @@
       transform: none;
       box-shadow: none;
     }
-    .option.correct { /* Style for correct answer */
-      background: #28a745; /* Green */
-      color: white;
-      border-color: #28a745;
-      font-weight: 700;
-      box-shadow: 0 0 0 1.5px #28a745 inset;
-    }
-    .option.incorrect { /* Style for incorrect answer */
-      background: #dc3545; /* Red */
-      color: white;
-      border-color: #dc3545;
-      font-weight: 700;
-      box-shadow: 0 0 0 1.5px #dc3545 inset;
-    }
+    /* Removed .correct and .incorrect styles */
 
     .nav {
       margin-top: 35px;
@@ -442,7 +429,7 @@
       <h1>CYBER QUIZ</h1>
       <input id="name" placeholder="Full Name" type="text">
       <input id="id" placeholder="Student ID" type="text">
-      <button class="action-button" onclick="startQuiz()" id="startButton" disabled style="opacity: 0.6;">START</button>
+      <button class="action-button" onclick="startQuiz()">START</button>
     </div>
 
     <!-- Loading State -->
@@ -464,7 +451,7 @@
         <button onclick="prevQuestion()" aria-label="Previous question">‹</button>
         <button onclick="nextQuestion()" aria-label="Next question">›</button>
       </div>
-      <!-- Finish Button added here -->
+      <!-- Finish Button -->
       <button class="action-button" id="finishButton" onclick="finishQuiz()" style="display: none;">FINISH</button>
     </div>
 
@@ -485,9 +472,9 @@
 
   <script>
     // --- Configuration ---
-    // IMPORTANT: Use the CORRECT Google Apps Script Web App URL here
-   const API = "https://script.google.com/macros/s/AKfycbzuemF2IvABwLeabMnkDHNwkQ_nZ___aVtFtAFrqqlotXuvjXfnLAeCIIltCI3in2z-/exec";
-    const SUBMISSION_API = API; // Using the same API for submission
+   const API = "https://script.google.com/macros/s/AKfycbz1ZJYCfGdd0EF3doWF8hKV8OiJsy-lHbEaT6ZLwj86lyJ56hvudSmcsxWsrnPFcc7axA/exec";
+    // Using the same API for submission, adjust if you have a separate endpoint
+    const SUBMISSION_API = API; 
 
     // --- State Variables ---
     let questions = [];
@@ -496,7 +483,6 @@
     let answers = []; // Stores selected answers: [answer1, answer2, ...]
     let typingTimeout = null;
     let isSubmitting = false; // Flag to prevent multiple submissions
-    let studentIdsSubmitted = new Set(); // To track submitted IDs on the client-side
 
     // --- Theme Toggle Function ---
     function toggleTheme() {
@@ -514,6 +500,7 @@
     function getScore() {
       let correctCount = 0;
       for (let i = 0; i < questions.length; i++) {
+        // Ensure both current question and answer exist before comparison
         if (questions[i] && answers[i] && answers[i] === questions[i].Answer) {
           correctCount++;
         }
@@ -522,10 +509,7 @@
     }
 
     function updateScoreDisplay() {
-      const scoreElement = document.getElementById("score");
-      if (scoreElement) {
-          scoreElement.innerText = "Score: " + getScore();
-      }
+      document.getElementById("score").innerText = "Score: " + getScore();
     }
 
     // --- Fetch Questions ---
@@ -535,47 +519,38 @@
 
       try {
         const response = await fetch(API);
-        if (!response.ok) {
-            // Handle HTTP errors
-            throw new Error(`HTTP error! status: ${response.status}. URL: ${API}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         questions = await response.json();
 
         if (!Array.isArray(questions) || questions.length === 0) {
-            throw new Error("No questions found or invalid data format received from the API.");
+            throw new Error("No questions found or invalid data format.");
         }
 
-        // Ensure questions have the expected properties
-        questions = questions.filter(q => q.Question && q.Option1 && q.Option2 && q.Option3 && q.Option4 && q.Answer);
-        if (questions.length === 0) {
-            throw new Error("No valid questions found after filtering.");
-        }
-
-        answers = new Array(questions.length).fill(null);
+        answers = new Array(questions.length).fill(null); // Initialize answers array
 
         document.getElementById("loader").classList.add("hidden");
         document.getElementById("quiz").classList.remove("hidden");
 
-        index = 0;
+        index = 0; // Start from the first question
         updateScoreDisplay();
-        renderQuestion();
+        renderQuestion(); // Display the first question
 
       } catch (error) {
         console.error("Error fetching questions:", error);
-        // Display a user-friendly message
-        alert(`Failed to load questions. Please check your connection and the API URL. Error: ${error.message}`);
-        // Reset to login screen or show an error state
+        alert("Error loading questions. Please check the console or try again later.");
         document.getElementById("loader").classList.add("hidden");
         document.getElementById("login").classList.remove("hidden");
-        // Optionally clear inputs or show an error message on the login screen
       }
     }
 
     // --- Typewriter Effect for Questions ---
     function typeWriter(text, elementId, speed = 18) {
       const el = document.getElementById(elementId);
-      el.innerHTML = "";
-      if (typingTimeout) clearTimeout(typingTimeout);
+      el.innerHTML = ""; // Clear previous content
+
+      if (typingTimeout) {
+        clearTimeout(typingTimeout); // Clear any existing timeout
+      }
 
       let i = 0;
       function typing() {
@@ -590,24 +565,25 @@
 
     // --- Render Current Question and Options ---
     function renderQuestion() {
-      if (!questions || questions.length === 0) return;
+      if (!questions || questions.length === 0) return; // Exit if no questions
 
       const quizStage = document.getElementById("quizStage");
-      quizStage.classList.add("fade-out");
+      quizStage.classList.add("fade-out"); // Start fade out animation
 
       setTimeout(() => {
         const currentQuestionData = questions[index];
+        
         typeWriter("> " + currentQuestionData.Question, "question");
 
         const optionsContainer = document.getElementById("options");
-        optionsContainer.innerHTML = "";
+        optionsContainer.innerHTML = ""; // Clear previous options
 
         const availableOptions = [
           currentQuestionData.Option1,
           currentQuestionData.Option2,
           currentQuestionData.Option3,
           currentQuestionData.Option4
-        ].filter(opt => opt); // Remove any empty options
+        ].filter(opt => opt); // Filter out empty options
 
         shuffleArray(availableOptions); // Shuffle options
 
@@ -615,8 +591,9 @@
           const button = document.createElement("button");
           button.className = "option";
           button.innerText = optionText;
-          button.dataset.answer = optionText;
+          button.dataset.answer = optionText; // Store the answer text
 
+          // Highlight previously selected answer
           if (answers[index] === optionText) {
             button.classList.add("selected");
           }
@@ -625,42 +602,33 @@
           optionsContainer.appendChild(button);
         });
 
-        updateScoreDisplay();
-        quizStage.classList.remove("fade-out");
-      }, 300);
+        updateScoreDisplay(); // Update score display
+        quizStage.classList.remove("fade-out"); // Start fade in animation
+      }, 300); // Match the transition duration
     }
 
     // --- Handle Answer Selection ---
     function handleAnswerSelection(selectedButton, selectedAnswerText, correctAnswer) {
+      // Disable all buttons temporarily
       const allOptionButtons = document.querySelectorAll(".option");
-      allOptionButtons.forEach(btn => {
-          btn.classList.add("disabled"); // Disable all buttons
-          btn.onclick = null; // Remove click handler
-      });
+      allOptionButtons.forEach(btn => btn.classList.add("disabled"));
 
-      answers[index] = selectedAnswerText;
-      updateScoreDisplay();
+      answers[index] = selectedAnswerText; // Record the user's choice
+      updateScoreDisplay(); // Update score immediately
 
+      // Apply visual feedback (selected state)
       selectedButton.classList.add("selected");
-      if (selectedAnswerText === correctAnswer) {
-        selectedButton.classList.add("correct");
-      } else {
-        selectedButton.classList.add("incorrect");
-        allOptionButtons.forEach(btn => {
-          if (btn.dataset.answer === correctAnswer) {
-            btn.classList.add("correct"); // Highlight correct answer
-          }
-        });
-      }
+      
+      // Removed specific correct/incorrect styling
 
       setTimeout(() => {
         if (index < questions.length - 1) {
-          index++;
+          index++; // Move to the next question
           renderQuestion();
         } else {
-          finishQuiz();
+          finishQuiz(); // End of quiz
         }
-      }, 1500);
+      }, 1500); // Wait 1.5 seconds before proceeding
     }
 
     // --- Navigation ---
@@ -669,7 +637,7 @@
         index++;
         renderQuestion();
       } else {
-        finishQuiz(); // End quiz if at last question and 'next' is pressed
+        finishQuiz(); // If at the last question, pressing next should trigger finish
       }
     }
 
@@ -690,23 +658,17 @@
         return;
       }
 
-      // Client-side check for duplicate ID submission
-      if (studentIdsSubmitted.has(user.id)) {
-          alert("It seems you have already submitted the quiz with this Student ID. Please use a different ID or contact support.");
-          return;
-      }
-
       const music = document.getElementById("music");
-      music.play().catch(e => console.log("Background music could not be played. Auto-play might be restricted."));
+      music.play().catch(e => console.log("Music play failed:", e));
 
-      await fetchQuestions();
+      await fetchQuestions(); // Fetch questions after getting user info
 
       document.getElementById("finishButton").style.display = "inline-block";
     }
 
     // --- Finish Quiz ---
     async function finishQuiz() {
-      if (isSubmitting) return;
+      if (isSubmitting) return; 
       isSubmitting = true;
 
       document.getElementById("quiz").classList.add("hidden");
@@ -717,10 +679,15 @@
       const percentage = totalQuestions > 0 ? ((score / totalQuestions) * 100).toFixed(1) : "0.0";
 
       let message = "";
-      if (percentage < 30) message = "Maybe try reading the book once? 😅";
-      else if (percentage < 60) message = "Not bad, but you're not exactly an expert yet. 😉";
-      else if (percentage < 90) message = "Pretty solid! You definitely did your homework. 👏";
-      else message = "Genius! Are you a professor in disguise? 🧠🔥";
+      if (percentage < 30) {
+        message = "Wow... maybe try reading the book once? 😅";
+      } else if (percentage < 60) {
+        message = "Not bad, but you're not exactly an expert yet. 😉";
+      } else if (percentage < 90) {
+        message = "Pretty solid! You definitely did your homework. 👏";
+      } else {
+        message = "Genius! Are you a professor in disguise? 🧠🔥";
+      }
 
       document.getElementById("final").innerHTML = `
         <div style="font-size:24px; font-family:'Poppins',sans-serif;">
@@ -735,11 +702,7 @@
       try {
         const response = await fetch(SUBMISSION_API, {
           method: "POST",
-          // mode: "no-cors", // IMPORTANT: Using 'no-cors' means the response will be opaque.
-                           // If your Google Apps Script handles CORS properly (e.g., using `setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)`
-                           // and potentially returning appropriate headers), you might remove 'no-cors' for better debugging.
-                           // For now, leaving it as it's common for basic GAS deployments.
-          mode: "no-cors",
+          mode: "no-cors", // Essential for cross-origin requests without preflight
           headers: {
             'Content-Type': 'application/json',
           },
@@ -749,19 +712,15 @@
             score: score,
             total: totalQuestions,
             percentage: percentage,
-            answers: answers, // Sending the array of selected answers
+            answers: answers, // Send the array of answers
             timestamp: new Date().toISOString()
           })
         });
 
-        console.log("Submission request sent. Response status is opaque due to 'no-cors'. Server should handle it.");
-        studentIdsSubmitted.add(user.id); // Add to client-side tracking set
+        console.log("Submission request sent. Response status is opaque due to 'no-cors'.");
 
       } catch (error) {
         console.error("Error submitting results:", error);
-        alert("There was an error submitting your results. Please check your internet connection.");
-      } finally {
-          isSubmitting = false; // Reset flag
       }
     }
 
@@ -769,34 +728,28 @@
     function shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+        [array[i], array[j]] = [array[j], array[i]]; // Swap elements
       }
     }
 
-    // --- Event Listeners ---
-    // Update start button state based on input fields
-    document.addEventListener('DOMContentLoaded', () => {
+    // --- Event Listeners & Initialization ---
+    function updateUserButtonState() {
         const nameInput = document.getElementById("name");
         const idInput = document.getElementById("id");
-        const startButton = document.getElementById("startButton");
+        const startButton = document.querySelector("#login .action-button");
 
-        function updateStartButtonState() {
-            if (nameInput.value.trim() && idInput.value.trim()) {
-                startButton.disabled = false;
-                startButton.style.opacity = '1';
-            } else {
-                startButton.disabled = true;
-                startButton.style.opacity = '0.6';
-            }
+        if (nameInput.value.trim() && idInput.value.trim()) {
+            startButton.disabled = false;
+            startButton.style.opacity = '1';
+        } else {
+            startButton.disabled = true;
+            startButton.style.opacity = '0.6';
         }
+    }
 
-        nameInput.addEventListener("input", updateStartButtonState);
-        idInput.addEventListener("input", updateStartButtonState);
-
-        // Initialize button state on load
-        updateStartButtonState();
-
-        // Add navigation button event listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        updateUserButtonState(); // Set initial state for the start button
+        // Add event listeners for navigation buttons
         document.querySelector('.nav button:nth-of-type(1)').onclick = prevQuestion;
         document.querySelector('.nav button:nth-of-type(2)').onclick = nextQuestion;
     });
